@@ -4,8 +4,8 @@
 #include <HTTPClient.h>
 
 // **ข้อมูล WiFi และ Blynk**
-const char ssid[] = "00";        // ชื่อ Wi-Fi
-const char pass[] = "123456789";    // รหัสผ่าน Wi-Fi
+const char ssid[] = "Aticha";        // ชื่อ Wi-Fi
+const char pass[] = "0928293374";    // รหัสผ่าน Wi-Fi
 const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";  // Auth Token จาก Blynk
 
 // **ข้อมูล Telegram Bot**
@@ -20,8 +20,8 @@ const char* chatID = "7631878885";
 #define SAMPLE_WINDOW 50    // เวลาสุ่มตัวอย่างเสียง (ms)
 
 // **ค่ากำหนด**
-#define SOUND_THRESHOLD 50  // ตั้งค่าแจ้งเตือนเมื่อเสียงเกิน 50 dB
-#define TELEGRAM_COOLDOWN 30000 // หน่วงเวลา 30 วินาที
+#define SOUND_THRESHOLD 60  // ตั้งค่าแจ้งเตือนเมื่อเสียงเกิน 60 dB
+#define TELEGRAM_COOLDOWN 2000 // หน่วงเวลา 2 วินาที
 #define REFERENCE_VOLTAGE 0.0005 // ค่ามาตรฐานอ้างอิงสำหรับคำนวณ dB
 
 DHT dht(DHTPIN, DHTTYPE);
