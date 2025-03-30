@@ -6,7 +6,7 @@
 #include <WiFiUdp.h>
 #include <WiFiManager.h>
 
-// **ข้อมูล Blynk**
+// **ข้อมูล Blynk**ฟ
 const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";  // ใส่ Blynk Auth Token ของคุณที่นี่
 
 // **ข้อมูล Telegram Bot**
