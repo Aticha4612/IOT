@@ -1,41 +1,39 @@
-#include <WiFi.h>
+#include <WiFiManager.h> // ไลบรารี WiFiManager
 #include <BlynkSimpleEsp32.h>
 #include <DHT.h>
 #include <HTTPClient.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <WiFiManager.h>
 
-// **ข้อมูล Blynk**ฟ
-const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";  // ใส่ Blynk Auth Token ของคุณที่นี่
+// **ข้อมูล Blynk**
+const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";  // Auth Token จาก Blynk
 
 // **ข้อมูล Telegram Bot**
-const char* telegramBotToken = "8178669136:AAHmOXetwGN10LQF6LE1vfDNJkbf45XzArc";  // ใส่ Token ของ Telegram Bot ที่นี่
-const char* chatID = "7631878885";  // ใส่ Chat ID ของคุณที่นี่
+const char* telegramBotToken = "8178669136:AAHmOXetwGN10LQF6LE1vfDNJkbf45XzArc";
+const char* chatID = "7631878885";
 
 // **กำหนดขาเซนเซอร์**
-#define SOUND_SENSOR_A0 34
-#define SOUND_SENSOR_D0 4
-#define DHTPIN 15
-#define DHTTYPE DHT11
-#define SAMPLE_WINDOW 500
-#define SAMPLE_COUNT 10
-#define SOUND_THRESHOLD 50
-#define TELEGRAM_COOLDOWN 10000
-#define REFERENCE_VOLTAGE 0.0005
+#define SOUND_SENSOR_A0 34  // KY-038 (A0) → GPIO 34A
+#define SOUND_SENSOR_D0 4   // KY-038 (D0) → GPIO 4
+#define DHTPIN 15           // DHT11 (DATA) → GPIO 15
+#define DHTTYPE DHT11       // ใช้ DHT11
+#define SAMPLE_WINDOW 500   // เวลาตรวจจับเสียง (ms)
+#define SAMPLE_COUNT 10     // จำนวนรอบการคำนวณค่าเฉลี่ย
+#define SOUND_THRESHOLD 50  // ตั้งค่าแจ้งเตือนเมื่อเสียงเกิน 50 dB
+#define TELEGRAM_COOLDOWN 10000 // แจ้งเตือน Telegram ทุก 10 วินาที
+#define REFERENCE_VOLTAGE 0.0005 // ค่ามาตรฐานอ้างอิงสำหรับคำนวณ dB
 
 DHT dht(DHTPIN, DHTTYPE);
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200);  // เวลา GMT+7
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200); // GMT+7
 
 unsigned long lastTelegramSent = 0;
 unsigned long lastCheckTime = 0;
-float smoothedDb = 0;
+float smoothedDb = 0; // ค่าเฉลี่ยถ่วงน้ำหนักของเสียง
 
-// **เชื่อมต่อ Wi-Fi แบบอัตโนมัติ**
 void setupWiFi() {
     WiFiManager wifiManager;
-    wifiManager.autoConnect("ESP32_SoundMonitor");  // ตั้งชื่อ Wi-Fi สำหรับการตั้งค่าตัวใหม่
+    wifiManager.autoConnect("WiFi_citysound"); // สร้าง AP ถ้าไม่มี Wi-Fi ที่บันทึกไว้
     Serial.println("✅ Wi-Fi Connected!");
 }
 
@@ -44,8 +42,14 @@ void setup() {
     pinMode(SOUND_SENSOR_D0, INPUT);
     dht.begin();
 
-    setupWiFi();  // เรียกใช้งานฟังก์ชัน setupWiFi
+    // **ตั้งค่า WiFi**
+    setupWiFi();
+
+    // **เชื่อมต่อ Blynk Server**
     Blynk.begin(auth, WiFi.SSID().c_str(), WiFi.psk().c_str(), "iotservices.thddns.net", 5535);
+    Blynk.connect();
+
+    // **เริ่มต้น NTP Client**
     timeClient.begin();
 }
 
@@ -84,7 +88,7 @@ float measureSoundLevel() {
 }
 
 void loop() {
-    if (Blynk.connected()) Blynk.run();
+    Blynk.run();
     timeClient.update();
     
     if (millis() - lastCheckTime >= 1000) {  // ตรวจสอบทุก 1 วินาที
