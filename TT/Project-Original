@@ -1,4 +1,4 @@
-#include <WiFiManager.h> // ไลบรารี WiFiManager
+#include <WiFiManager.h>
 #include <BlynkSimpleEsp32.h>
 #include <DHT.h>
 #include <HTTPClient.h>
@@ -6,34 +6,34 @@
 #include <WiFiUdp.h>
 
 // **ข้อมูล Blynk**
-const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";  // Auth Token จาก Blynk
+const char auth[] = "Ca9S9BOutnzOnKRXX7UIav76sFdtZVsY";
 
 // **ข้อมูล Telegram Bot**
 const char* telegramBotToken = "8178669136:AAHmOXetwGN10LQF6LE1vfDNJkbf45XzArc";
 const char* chatID = "7631878885";
 
 // **กำหนดขาเซนเซอร์**
-#define SOUND_SENSOR_A0 34  // KY-038 (A0) → GPIO 34A
-#define SOUND_SENSOR_D0 4   // KY-038 (D0) → GPIO 4
-#define DHTPIN 15           // DHT11 (DATA) → GPIO 15
-#define DHTTYPE DHT11       // ใช้ DHT11
-#define SAMPLE_WINDOW 500   // เวลาตรวจจับเสียง (ms)
-#define SAMPLE_COUNT 10     // จำนวนรอบการคำนวณค่าเฉลี่ย
-#define SOUND_THRESHOLD 50  // ตั้งค่าแจ้งเตือนเมื่อเสียงเกิน 50 dB
-#define TELEGRAM_COOLDOWN 10000 // แจ้งเตือน Telegram ทุก 10 วินาที
-#define REFERENCE_VOLTAGE 0.0005 // ค่ามาตรฐานอ้างอิงสำหรับคำนวณ dB
+#define SOUND_SENSOR_A0 34
+#define SOUND_SENSOR_D0 4
+#define DHTPIN 15
+#define DHTTYPE DHT11
+#define SAMPLE_WINDOW 500
+#define SAMPLE_COUNT 10
+#define TELEGRAM_COOLDOWN 10000
+#define REFERENCE_VOLTAGE 0.0005
 
 DHT dht(DHTPIN, DHTTYPE);
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200); // GMT+7
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200);
 
 unsigned long lastTelegramSent = 0;
 unsigned long lastCheckTime = 0;
-float smoothedDb = 0; // ค่าเฉลี่ยถ่วงน้ำหนักของเสียง
+float smoothedDb = 0;
+int soundThreshold = 50; // ปรับค่าแจ้งเตือนผ่าน Slider
 
 void setupWiFi() {
     WiFiManager wifiManager;
-    wifiManager.autoConnect("WiFi_citysound"); // สร้าง AP ถ้าไม่มี Wi-Fi ที่บันทึกไว้
+    wifiManager.autoConnect("WiFi_citysound");
     Serial.println("✅ Wi-Fi Connected!");
 }
 
@@ -41,25 +41,21 @@ void setup() {
     Serial.begin(115200);
     pinMode(SOUND_SENSOR_D0, INPUT);
     dht.begin();
-
-    // **ตั้งค่า WiFi**
     setupWiFi();
-
-    // **เชื่อมต่อ Blynk Server**
     Blynk.begin(auth, WiFi.SSID().c_str(), WiFi.psk().c_str(), "iotservices.thddns.net", 5535);
     Blynk.connect();
-
-    // **เริ่มต้น NTP Client**
     timeClient.begin();
 }
 
-// **ฟังก์ชันแจ้งเตือน Telegram**
+BLYNK_WRITE(V3) {
+    soundThreshold = param.asInt();
+    Serial.printf("🔧 ปรับระดับเสียงแจ้งเตือนใหม่: %d dB\n", soundThreshold);
+}
+
 void sendTelegramMessage(float soundLevel) {
     if (WiFi.status() != WL_CONNECTED) return;
-    
     timeClient.update();
     String currentTime = timeClient.getFormattedTime();
-    
     HTTPClient http;
     http.begin("https://api.telegram.org/bot" + String(telegramBotToken) + "/sendMessage");
     http.addHeader("Content-Type", "application/json");
@@ -84,20 +80,17 @@ float measureSoundLevel() {
         totalDb += dB;
         delay(10);
     }
-    return totalDb / SAMPLE_COUNT; // ค่าเฉลี่ยของ dB
+    return totalDb / SAMPLE_COUNT;
 }
 
 void loop() {
     Blynk.run();
     timeClient.update();
     
-    if (millis() - lastCheckTime >= 1000) {  // ตรวจสอบทุก 1 วินาที
+    if (millis() - lastCheckTime >= 1000) {
         lastCheckTime = millis();
         float dB = measureSoundLevel();
-
-        // **ฟิลเตอร์ค่าเฉลี่ยถ่วงน้ำหนัก**
         smoothedDb = (0.7 * smoothedDb) + (0.3 * dB);
-
         float temperature = dht.readTemperature();
         float humidity = dht.readHumidity();
         String currentTime = timeClient.getFormattedTime();
@@ -108,7 +101,7 @@ void loop() {
             Blynk.virtualWrite(V2, humidity);
             Serial.printf("Temp: %.2f °C, Humidity: %.2f %%, Sound Level: %.2f dB, Time: %s\n", temperature, humidity, smoothedDb, currentTime.c_str());
 
-            if (smoothedDb > SOUND_THRESHOLD && millis() - lastTelegramSent > TELEGRAM_COOLDOWN) {
+            if (smoothedDb > soundThreshold && millis() - lastTelegramSent > TELEGRAM_COOLDOWN) {
                 sendTelegramMessage(smoothedDb);
                 lastTelegramSent = millis();
             }
